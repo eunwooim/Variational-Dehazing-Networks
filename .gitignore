@@ -1,0 +1,12 @@
+# Checkpoint
+/ckpt
+
+# Cache
+__pycache__/
+*.swp
+
+# MacOS
+.DS_Store
+
+# etc
+/debug.ipynb
