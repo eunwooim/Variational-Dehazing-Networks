@@ -43,7 +43,7 @@ class GridDehazeNet(nn.Module):
         self.depth_rate = depth_rate
         self.coefficient = nn.Parameter(torch.Tensor(np.ones((height, width, 2, depth_rate*stride**(height-1)))), requires_grad=attention)
         self.conv_in = nn.Conv2d(in_channels, depth_rate, kernel_size=kernel_size, padding=(kernel_size - 1) // 2)
-        self.conv_out = nn.Conv2d(depth_rate, in_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2)
+        self.conv_out = nn.Conv2d(depth_rate, out_channels=6, kernel_size=kernel_size, padding=(kernel_size - 1) // 2)
         self.rdb_in = RDB(depth_rate, num_dense_layer, growth_rate)
         self.rdb_out = RDB(depth_rate, num_dense_layer, growth_rate)
 
