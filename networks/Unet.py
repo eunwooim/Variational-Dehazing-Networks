@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from SubBlocks import conv3x3
+from networks.SubBlocks import conv3x3
 
 class UNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=6, depth=4, wf=64, slope=0.2):

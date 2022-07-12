@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from Unet import UNet
-from Griddehaze import GridDehazeNet
+from networks.Unet import UNet
+from networks.Griddehaze import GridDehazeNet
 
 class VHRN(nn.Module):
     def __init__(self): 
