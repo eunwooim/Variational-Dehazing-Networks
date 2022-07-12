@@ -29,6 +29,6 @@ def loss_fn(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, 
     n2_div_eps2 = torch.div(n2, eps2)
     kl_transmission = 0.5 * torch.mean(-log(n2_div_eps2) -1 + n2_div_eps2 + (beta-gt_transmission)**2 / eps2)    
 
-    total_loss = kl_transmission + kl_dehaze + lh
+    total_loss = kl_transmission + kl_dehaze - lh
 
     return total_loss
