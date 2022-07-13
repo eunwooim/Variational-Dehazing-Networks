@@ -23,8 +23,6 @@ if isinstance(args.gpu_id, int):
 else:
     os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(x) for x in list(args.gpu_id))
 
-A = 0.5
-
 def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
     clip_grad_D = args.clip_grad_D
     clip_grad_S = args.clip_grad_S
@@ -50,7 +48,7 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
         net.train()
 
         for ii, data in enumerate(trian_loader): 
-            im_clear, im_hazy, im_trans = [x.cuda().float() for x in data]
+            im_clear, im_hazy, im_trans, A = [x.cuda().float() for x in data]
             optimizer.zero_grad()
             dehaze_est, trans_est = net(im_hazy, 'train')
             loss , lh, kl_dehaze, kl_trans = criterion(im_hazy, dehaze_est, trans_est, im_clear, im_trans, A, sigma = 1e-6, eps1= 1e-6, eps2=1e-6)
