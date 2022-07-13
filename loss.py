@@ -16,19 +16,19 @@ def loss_fn(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, 
 
     # parameters predicted of transmission
     beta = out_transmission[:, :3]
-    n2 = out_transmission[:, :3]
-
-    # Likelihood
-    lh = 0.5 * torch.mean(-log(2*pi) - log(sigma) + (1/sigma)*((input - alpha*beta - A*(1-beta)**2) + sigma))
+    n2 = out_transmission[:, 3:]
 
     # KL divergence for dehaze 
     m2_div_eps1 = torch.div(m2, eps1)
-    kl_dehaze = 0.5 * torch.mean(-log(m2_div_eps1) -1 + m2_div_eps1 + (alpha-gt_dehaze)**2 / eps1)
+    kl_dehaze = 0.5 * torch.mean(-torch.log(m2_div_eps1) -1 + m2_div_eps1 + ((alpha-gt_dehaze)**2 / eps1))
 
     # KL divergence for transmission 
     n2_div_eps2 = torch.div(n2, eps2)
-    kl_transmission = 0.5 * torch.mean(-log(n2_div_eps2) -1 + n2_div_eps2 + (beta-gt_transmission)**2 / eps2)    
+    kl_transmission = 0.5 * torch.mean(-torch.log(n2_div_eps2) -1 + n2_div_eps2 + ((beta-gt_transmission)**2 / eps2))    
+    
+    # Likelihood
+    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) - 0.5 * torch.mean(((input - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
+    
+    total_loss = kl_transmission + kl_dehaze + lh
 
-    total_loss = kl_transmission + kl_dehaze - lh
-
-    return total_loss
+    return total_loss, lh, kl_dehaze, kl_transmission
