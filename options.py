@@ -4,12 +4,12 @@ def set_opts():
     parser = argparse.ArgumentParser()
     
     # dataset setttings 
-    parser.add_argument('--train_path', type = str, default= 'home/eunu/nas')
-    parser.add_argument('--test_path', type = str, default='/home/eunu/nas')
+    parser.add_argument('--train_path', type = str, default= '/home/eunu/nas/reside/in_train.h5')
+    parser.add_argument('--test_path', type = str, default='/home/eunu/nas/reside/in_test.h5')
     parser.add_argument('--augmentation', type= bool, default=True)
 
     # trainning settings
-    parser.add_argument('--batch_size', type=int, default=64,
+    parser.add_argument('--batch_size', type=int, default=32,
                                                          help="Batchsize of training, (default:64)")
     parser.add_argument('--patch_size', type=int, default=128,
                                                    help="Patch size of data sample,  (default:128)")
@@ -30,7 +30,7 @@ def set_opts():
                                              help="Cliping the gradients for S-Net, (default: 1e3)")
 
     # GPU settings
-    parser.add_argument('--gpu_id', type=int, nargs='+', default=3,
+    parser.add_argument('--gpu_id', type=int, nargs='+', default=0,
                                                            help="GPU ID, which allow multiple GPUs")
 
     # dataset settings
