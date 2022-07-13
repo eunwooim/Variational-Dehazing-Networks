@@ -7,7 +7,7 @@ import torch.utils.data as uData
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from networks.DnCNN import DnCNN
-from data.dataloader  import TrainSet
+from data.dataloader  import Train_DnCNN
 from options import set_opts
 from loss import loss_fn
 import time 
@@ -17,8 +17,6 @@ gc.collect()
 torch.cuda.empty_cache()
 
 args = set_opts()
-args.gpu_id = 2
-args.batch_size = 1
 
 os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
 if isinstance(args.gpu_id, int):
@@ -45,7 +43,7 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
         net.train()
 
         for ii, data in enumerate(trian_loader): 
-            im_clear, im_hazy, _ = [x.cuda().float() for x in data]
+            im_clear, im_hazy = [x.cuda().float() for x in data]
             optimizer.zero_grad()
             dehaze_est = net(im_hazy)
             loss = criterion(im_clear, dehaze_est)
@@ -67,10 +65,7 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
             model_prefix = 'model_'
             save_model_path = os.path.join(args.model_dir,'DnCNN', model_prefix+str(epoch+1)+'.pth')
             torch.save(net.state_dict(), save_model_path)
-        
-        clip_grad_D = min(clip_grad_D, grad_norm_D)
-        clip_grad_S = min(clip_grad_S, grad_norm_S)
-        
+
         print('Epoch : {} || Total_Loss : {:.6f}'.format(epoch, loss_per_epoch))
         print('This epoch take time : {:.2f}'.format(time.time() - tic))
         print('-' * 100)
@@ -88,7 +83,7 @@ def main():
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma= 0.5)
 
     # datset 
-    train_dataset = TrainSet(args)
+    train_dataset = Train_DnCNN(args)
     print('dataset loaded ')
 
     # Loss -> MSE 
