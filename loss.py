@@ -27,7 +27,7 @@ def loss_fn(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, 
     kl_transmission = 0.5 * torch.mean(-torch.log(n2_div_eps2) -1 + n2_div_eps2 + ((beta-gt_transmission)**2 / eps2))    
     
     # Likelihood
-    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) - 0.5 * torch.mean(((input - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
+    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) - 0.5 * torch.mean(((input - (alpha*beta) + A*(1-beta))**2)/sigma + 1)
     
     total_loss = kl_transmission + kl_dehaze + lh
 
