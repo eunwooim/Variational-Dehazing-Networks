@@ -11,7 +11,6 @@ from data.dataloader  import TrainSet
 from options import set_opts
 from loss import loss_fn
 import time 
-from math import pi, log 
 
 import gc 
 gc.collect()
@@ -33,6 +32,8 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
     # set dataloader 
     trian_loader = uData.DataLoader(dataset=train_dataset, batch_size = args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     
+    num_data = train_dataset.__len__()
+
     # set tensorboard 
     writer = SummaryWriter(args.log_dir)
 
@@ -49,13 +50,10 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
         net.train()
 
         for ii, data in enumerate(trian_loader): 
-            im_clear, im_hazy, im_trans = data 
-            im_clear = im_clear.to('cuda:0')
-            im_hazy = im_hazy.to('cuda:0')
-            im_trans = im_trans.to('cuda:0')
+            im_clear, im_hazy, im_trans = [x.cuda().float() for x in data]
             optimizer.zero_grad()
-            phi_Z, phi_T = net(im_hazy, 'train')
-            loss , lh, kl_dehaze, kl_trans = criterion(im_hazy, phi_Z, phi_T, im_clear, im_trans, A, sigma = 1e-6, eps1= 1e-6, eps2=1e-6)
+            dehaze_est, trans_est = net(im_hazy, 'train')
+            loss , lh, kl_dehaze, kl_trans = criterion(im_hazy, dehaze_est, trans_est, im_clear, im_trans, A, sigma = 1e-6, eps1= 1e-6, eps2=1e-6)
             loss.backward()
 
             # clip the gradnorm
@@ -66,10 +64,10 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
 
             optimizer.step()
 
-            loss_per_epoch += loss.item()/args.batch_size
-            lh_loss += lh.item()/args.batch_size
-            trans_loss += kl_trans.item()/args.batch_size
-            dehaze_loss += kl_dehaze.item() / args.batch_size
+            loss_per_epoch += loss.item()/num_data
+            lh_loss += lh.item()/num_data
+            trans_loss += kl_trans.item()/num_data
+            dehaze_loss += kl_dehaze.item() / num_data
         
         # tensorboard
         writer.add_scalar('Loss_epochs', loss_per_epoch, epoch)
