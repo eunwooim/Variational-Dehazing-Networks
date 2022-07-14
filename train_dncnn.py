@@ -7,7 +7,7 @@ import torch.utils.data as uData
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from networks.DnCNN import DnCNN
-from data.dataloader  import Train_DnCNN
+from data.dataloader  import Train_DnCNN, Train_Trans_DnCNN
 from options import set_opts
 from loss import loss_fn
 import time 
@@ -37,8 +37,6 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
         loss_per_epoch = 0
         tic = time.time()
 
-        grad_norm_D = grad_norm_S = 0
-
         # train stage 
         net.train()
 
@@ -61,7 +59,7 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
 
 
         # save model state
-        if epoch % args.save_model_freq == 0 or epoch+1 == args.epochs:  
+        if epoch + 1 % args.save_model_freq == 0 or epoch+1 == args.epochs:  
             model_prefix = 'model_'
             save_model_path = os.path.join(args.model_dir,'DnCNN', model_prefix+str(epoch+1)+'.pth')
             torch.save(net.state_dict(), save_model_path)
@@ -83,7 +81,7 @@ def main():
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma= 0.5)
 
     # datset 
-    train_dataset = Train_DnCNN(args)
+    train_dataset = Train_Trans_DnCNN(args)
     print('dataset loaded ')
 
     # Loss -> MSE 
