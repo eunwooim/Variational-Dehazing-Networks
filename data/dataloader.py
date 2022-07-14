@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+import random
 import torch
 from torch.utils.data import Dataset
 
@@ -12,6 +13,7 @@ def to_tensor(img):
 class TrainSet(Dataset):
     def __init__(self, args):
         self.args = args
+        self.pch_size = args.patch_size
         with h5py.File(args.train_path, 'r') as f:
             self.clear = np.array(f['clear'])
             self.hazy = np.array(f['hazy'])
@@ -22,12 +24,24 @@ class TrainSet(Dataset):
 
     def __getitem__(self, idx):
         clear, hazy, trans = self.clear[idx//10], self.hazy[idx], self.trans[idx]
+        clear, hazy, trans = self.crop_patch(clear, hazy, trans)
         A = utils.get_A(hazy)
         if self.args.augmentation and np.random.choice([0,1]):
             clear, hazy, trans = np.flip(clear,1), np.flip(hazy,1), np.flip(trans,1)
         clear, hazy, trans = to_tensor(clear), to_tensor(hazy), to_tensor(trans)
         return (clear, hazy, trans, A)
-
+    
+    def crop_patch(self, *im):
+        # im = (clear, hazy, trans)
+        # im[0] == clear
+        H, W = im[0].shape[:2]
+        if H < self.pch_size or W < self.pch_size:
+            H = max(self.pch_size, H)
+            W = max(self.pch_size, W)
+            im = cv2.resize(im, (W, H))
+        ind_H = random.randint(0, H-self.pch_size)
+        ind_W = random.randint(0, W-self.pch_size)
+        return [x[ind_H:ind_H+self.pch_size, ind_W:ind_W+self.pch_size] for x in im]
 
 class TestSet(Dataset):
     def __init__(self, args):

@@ -15,4 +15,4 @@ def get_A(img, p=0.001):
     num_pixels = np.prod(dc.shape)
     flat_img, flat_dc = img.reshape(num_pixels,3), dc.ravel()
     idx = (-flat_dc).argsort()[:int(num_pixels * p)]
-    return np.max(flat_img.take(idx, axis=0), axis=0)
+    return np.max(flat_img.take(idx, axis=0), axis=0)    
