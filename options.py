@@ -9,9 +9,9 @@ def set_opts():
     parser.add_argument('--augmentation', type= bool, default=True)
 
     # trainning settings
-    parser.add_argument('--batch_size', type=int, default=4,
+    parser.add_argument('--batch_size', type=int, default=8,
                                                          help="Batchsize of training, (default:64)")
-    parser.add_argument('--patch_size', type=int, default=128,
+    parser.add_argument('--patch_size', type=int, default=256,
                                                    help="Patch size of data sample,  (default:128)")
     parser.add_argument('--epochs', type=int, default=60, help="Training epohcs,  (default:60)")
     parser.add_argument('--lr', type=float, default=2e-4,
@@ -30,7 +30,7 @@ def set_opts():
                                              help="Cliping the gradients for S-Net, (default: 1e3)")
 
     # GPU settings
-    parser.add_argument('--gpu_id', type=str, nargs='+', default= '2,3',
+    parser.add_argument('--gpu_id', type=int, nargs='+', default= 1,
                                                            help="GPU ID, which allow multiple GPUs")
 
     # dataset settings
