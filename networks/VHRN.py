@@ -33,3 +33,22 @@ class VHRN(nn.Module):
         if mode.lower() == 'transmission':
             phi_T= self.TNet(x)
             return phi_T
+
+class VGU(nn.modules): 
+    def __init__(self): 
+        super(VHRN, self).__init__()
+        #self.DNet = GridDehazeNet()
+        self.DNet = GridDehazeNet()
+        self.TNet = UNet()
+
+    def forward(self, x, mode = 'train'): 
+        if mode.lower() == 'train':
+            phi_Z = self.DNet(x)    
+            phi_T = self.TNet(x)
+            return phi_Z, phi_T
+        if mode.lower() == 'test': 
+            phi_Z = self.DNet(x)
+            return phi_Z
+        if mode.lower() == 'transmission':
+            phi_T= self.TNet(x)
+            return phi_T
