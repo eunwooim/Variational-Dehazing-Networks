@@ -7,7 +7,7 @@ import torch.utils.data as uData
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from networks.DnCNN import DnCNN
-from data.dataloader  import Train_DnCNN, Train_Trans_DnCNN
+from data.dataloader  import Train_DnCNN
 from options import set_opts
 from loss import loss_fn
 import time 
@@ -41,7 +41,7 @@ def train_model(net, train_dataset, optimizer, lr_scheduler, criterion):
         net.train()
 
         for ii, data in enumerate(trian_loader): 
-            im_clear, im_hazy = [x.cuda().float() for x in data]
+            im_clear, im_hazy = [x.cuda() for x in data]
             optimizer.zero_grad()
             dehaze_est = net(im_hazy)
             loss = criterion(im_clear, dehaze_est)
@@ -81,11 +81,11 @@ def main():
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma= 0.5)
 
     # datset 
-    train_dataset = Train_Trans_DnCNN(args)
+    train_dataset = Train_DnCNN(args)
     print('dataset loaded ')
 
     # Loss -> MSE 
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     
     # Train 
     train_model(net, train_dataset, optimizer, lr_scheduler, criterion)

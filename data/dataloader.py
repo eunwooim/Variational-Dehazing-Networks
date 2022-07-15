@@ -9,7 +9,7 @@ from utils import utils
 
 
 def to_tensor(img):
-    return torch.as_tensor(img/255).permute(2,0,1).contiguous()
+    return torch.as_tensor(img/255, dtype=torch.float32).permute(2,0,1).contiguous()
 
 class TrainSet(Dataset):
     def __init__(self, args):
@@ -58,6 +58,7 @@ class TestSet(Dataset):
 class Train_DnCNN(Dataset): 
     def __init__(self, args):
         self.args = args
+        self.pch_size = args.patch_size
         with h5py.File(args.train_path, 'r') as f:
             self.clear = np.array(f['clear'])
             self.hazy = np.array(f['hazy'])
@@ -66,29 +67,40 @@ class Train_DnCNN(Dataset):
         return (10 * len(self.clear))
 
     def __getitem__(self, idx):
-        clear, hazy = self.clear[idx//10], self.hazy[idx]
+        clear, hazy = self.crop_patch(self.clear[idx//10], self.hazy[idx])
         if self.args.augmentation and np.random.choice([0,1]):
             clear, hazy= np.flip(clear,1), np.flip(hazy,1)
         clear, hazy= to_tensor(clear), to_tensor(hazy)
         return (clear, hazy) 
+    
+    def crop_patch(self, *im):
+        H, W = im[0].shape[:2]
+        if H < self.pch_size or W < self.pch_size:
+            H = max(self.pch_size, H)
+            W = max(self.pch_size, W)
+            im = cv2.resize(im, (W, H))
+        ind_H = random.randint(0, H-self.pch_size)
+        ind_W = random.randint(0, W-self.pch_size)
+        return [x[ind_H:ind_H+self.pch_size, ind_W:ind_W+self.pch_size] for x in im]
+
 
 class Train_Trans_DnCNN(Dataset): 
     def __init__(self, args):
         self.args = args
         with h5py.File(args.train_path, 'r') as f:
-            self.clear = np.array(f['clear'])
             self.trans = np.array(f['trans'])
+            self.hazy = np.array(f['hazy'])
         self.pch_size = args.patch_size
 
     def __len__(self):
-        return (10 * len(self.clear))
+        return len(self.hazy)
 
     def __getitem__(self, idx):
-        clear, trans = self.crop_patch(self.clear[idx//10], self.trans[idx])
+        trans, hazy = self.crop_patch(self.trans[idx], self.hazy[idx])
         if self.args.augmentation and np.random.choice([0,1]):
-            clear, trans= np.flip(clear,1), np.flip(trans,1)
-        clear, trans= to_tensor(clear), to_tensor(trans)
-        return (clear, trans)     
+            trans, hazy = np.flip(trans,1), np.flip(hazy,1)
+        trans= to_tensor(trans), to_tensor(hazy)
+        return (trans, hazy)     
 
     def crop_patch(self, *im):
         H, W = im[0].shape[:2]

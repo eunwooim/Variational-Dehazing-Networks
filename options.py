@@ -30,7 +30,7 @@ def set_opts():
                                              help="Cliping the gradients for S-Net, (default: 1e3)")
 
     # GPU settings
-    parser.add_argument('--gpu_id', type=int, nargs='+', default= 1,
+    parser.add_argument('--gpu_id', type=int, nargs='+', default= 2,
                                                            help="GPU ID, which allow multiple GPUs")
 
     # dataset settings
