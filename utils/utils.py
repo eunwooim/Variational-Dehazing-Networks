@@ -1,11 +1,21 @@
 import cv2
 import numpy as np
 import torch
+import torch.nn
+
+from networks.VHRN import VHRN
 
 
 def postprocess(output):
     output = torch.clamp(output, min=0, max=1)
     return (output * 255).permute(1,2,0).numpy()
+
+def load_model(args):
+    model = VHRN()
+    model = nn.DataParallel(model)
+    ckpt = torch.load(f'{args.ckpt}/{str(args.resume).zfill(3)}.pth')
+    model.load_state_dict(ckpt)
+    return model
 
 def get_A(img, p=0.001):
     dc = np.amin(img, axis=2)
