@@ -34,9 +34,9 @@ class VHRN(nn.Module):
             phi_T= self.TNet(x)
             return phi_T
 
-class VGU(nn.modules): 
+class VGU(nn.Module): 
     def __init__(self): 
-        super(VHRN, self).__init__()
+        super(VGU, self).__init__()
         #self.DNet = GridDehazeNet()
         self.DNet = GridDehazeNet()
         self.TNet = UNet()
