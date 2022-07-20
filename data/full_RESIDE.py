@@ -10,52 +10,71 @@ def walk(folder):
     for dirpath, _, files in os.walk(folder):
         for filename in files:
             yield dirpath, filename
-
-def load(path):
+            
+def load_rgb(path):
     data = []
-    for folder, filename in walk(path):
-        img = cv2.imread(f'{folder}/{filename}')
+    for filename in sorted(os.listdir(path)):
+        img = cv2.imread(f'{path}/{filename}')
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         data.append(img.astype(np.uint8))
-        print(f'Loaded {path}')
+        print(f'Loaded {path}/{filename}')
     return np.array(data)
 
-def chname(path, dir):
-    if dir == 'clear': 
-        for filename in os.listdir(f'{path}/{dir}'):
-            name, ext = filename.split('.')
-            os.rename(f'{path}/{dir}/{filename}',
-                    f'{path}/{dir}/{name.zfill(4)}.{ext}')
-    elif dir == 'hazy':
-        for filename in os.listdir(f'{path}/{dir}'):
-            name, idx, beta = filename.split('_')
-            os.rename(f'{path}/{dir}/{filename}',
-                    f'{path}/{dir}/{name.zfill(4)}_{idx}_{beta}')
-    elif dir == 'trans':
-        for filename in os.listdir(f'{path}/{dir}'):
-            name, ext = filename.split('.')
-            name, idx = name.split('_')
-            os.rename(f'{path}/{dir}/{filename}',
-                    f'{path}/{dir}/{name.zfill(4)}_{idx}_.{ext}')
+def load_gray(path):
+    data = []
+    for filename in sorted(os.listdir(path)):
+        img = cv2.imread(f'{path}/{filename}')
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        data.append(img.astype(np.uint8))
+        print(f'Loaded {path}/{filename}')
+    return np.array(data)
 
-def main(args, data={}):
-    os.makedirs(args.h5_path[:-len(args.h5_path.split('/')[-1])], exist_ok=True)
+def chname(path):
+    if 'trans' in path:
+        for filename in os.listdir(path):
+            file, idx = filename.split('_')
+            idx, ext = idx.split('.')
+            os.rename(f'{path}/{filename}',
+                      f'{path}/{file.zfill(4)}_{idx}_.{ext}')
+            
+    elif 'hazy' in path:
+        for filename in os.listdir(path):
+            file, idx = filename.split('_')[0], filename.split('_')[1:]
+            os.rename(f'{path}/{filename}',
+                      f"{path}/{file.zfill(4)}_{'_'.join(idx)}")
+            
+    elif 'clear' in path:
+        for filename in os.listdir(path):
+            file, ext = filename.split('.')
+            os.rename(f'{path}/{filename}',
+                      f'{path}/{file.zfill(4)}.{ext}')
+
+def main(args, data=dict()):
     for dir in os.listdir(args.root):
-        chname(args.root, dir)
-        data[dir] = load(f'{args.root}/{dir}')
+        if dir == 'trans':
+            array = load_gray(f'{args.root}/{dir}')
+            data[dir] = array
+        else:
+            array = load_rgb(f'{args.root}/{dir}')
+            data[dir] = array
 
-    h5 = h5py.File(f'{args.h5_path}', 'w')
+    h5 = h5py.File(args.h5_path, 'w')
     for key in data.keys():
-        h5.create_dataset(key, data=data[key],
-                            compression='gzip', compression_opts=9)
+        h5.create_dataset(key, data=data[key])
     h5.close()
-
+    
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=str, default='/Users/eunu/Downloads/RESIDE-full')
     parser.add_argument('--h5_path', type=str, default='/Users/eunu/reside/in_train.h5')
     return parser.parse_args()
 
+
 if __name__ == '__main__':
     args = get_args()
+    for path in os.listdir(args.root):
+        path = f'{args.root}/{path}'
+        chname(path)
+    
+    h5_path = f'{args.root}/in_train.h5'
     main(args)
