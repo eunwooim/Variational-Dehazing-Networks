@@ -19,8 +19,8 @@ class VHRN(nn.Module):
     def __init__(self): 
         super(VHRN, self).__init__()
         #self.DNet = GridDehazeNet()
-        self.DNet = DnCNN(in_channels=3, out_channels=6)
-        self.TNet = DnCNN(in_channels=3, out_channels=6)
+        self.DNet = UNet(out_channels=6)
+        self.TNet = UNet(out_channels=2)
 
     def forward(self, x, mode = 'train'): 
         if mode.lower() == 'train':

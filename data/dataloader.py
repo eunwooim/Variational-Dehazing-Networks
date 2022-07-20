@@ -28,8 +28,10 @@ class TrainSet(Dataset):
         clear, hazy, trans = self.random_crop(clear, hazy, trans)
         A = utils.get_A(hazy)
         if self.args.augmentation and np.random.choice([0,1]):
-            clear, hazy, trans = np.flip(clear,1), np.flip(hazy,1), np.flip(trans,1)
-        clear, hazy, trans = to_tensor(clear), to_tensor(hazy), to_tensor(trans)
+            clear, hazy, trans = np.flip(clear,1), np.flip(hazy,1), np.flip(trans,1) 
+        trans = np.expand_dims(cv2.cvtColor(trans, cv2.COLOR_RGB2GRAY), axis=-1) 
+        clear, hazy, trans= to_tensor(clear), to_tensor(hazy), to_tensor(trans)
+        A = torch.tensor(A, dtype=torch.float32).unsqueeze(-1).unsqueeze(-1)
         return (clear, hazy, trans, A)
     
     def random_crop(self, *img):
@@ -99,7 +101,8 @@ class Train_Trans_DnCNN(Dataset):
         trans, hazy = self.crop_patch(self.trans[idx], self.hazy[idx])
         if self.args.augmentation and np.random.choice([0,1]):
             trans, hazy = np.flip(trans,1), np.flip(hazy,1)
-        trans= to_tensor(trans), to_tensor(hazy)
+        trans = cv2.cvtColor(trans, cv2.COLOR_RGB2GRAY)
+        trans, hazy= to_tensor(trans), to_tensor(hazy)
         return (trans, hazy)     
 
     def crop_patch(self, *im):
