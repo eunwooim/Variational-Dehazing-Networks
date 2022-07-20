@@ -26,10 +26,10 @@ class TrainSet(Dataset):
     def __getitem__(self, idx):
         clear, hazy, trans = self.clear[idx//10], self.hazy[idx], self.trans[idx]
         clear, hazy, trans = self.random_crop(clear, hazy, trans)
-        A = utils.get_A(hazy)
+        A = torch.tensor(utils.get_A(hazy/255)).reshape(3,1,1).float()
         if self.args.augmentation and np.random.choice([0,1]):
             clear, hazy, trans = np.flip(clear,1), np.flip(hazy,1), np.flip(trans,1) 
-        trans = np.expand_dims(cv2.cvtColor(trans, cv2.COLOR_RGB2GRAY), axis=-1) 
+        trans = np.expand_dims(trans, axis=-1) 
         clear, hazy, trans= to_tensor(clear), to_tensor(hazy), to_tensor(trans)
         A = torch.tensor(A, dtype=torch.float32).unsqueeze(-1).unsqueeze(-1)
         return (clear, hazy, trans, A)
