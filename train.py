@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from data.dataloader import TrainSet
 from loss import loss_fn
-from networks.VHRN import VHRN
+from networks.VHRN import *
 from utils import utils
 
 
@@ -73,25 +73,25 @@ def train(args):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=84)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train.h5')
     parser.add_argument('--ckpt', type=str, default='./ckpt')
     parser.add_argument('--epoch', type=int, default=100)
     parser.add_argument('--step_size', type=int, default=15)
-    parser.add_argument('--gamma', type=float, default=0.75)
+    parser.add_argument('--gamma', type=float, default=0.8)
     parser.add_argument('--clip_grad_D', type=float, default=1e4)
     parser.add_argument('--clip_grad_T', type=float, default=1e3)
     parser.add_argument('--log_dir', type=str, default='./log')
     parser.add_argument('--patch_size', type=int, default=256)
     parser.add_argument('--augmentation', type=bool, default=True)
 
-    parser.add_argument('--cuda', type=int, default='1')
+    parser.add_argument('--cuda', type=str, default='2')
     parser.add_argument('--resume', type=int, default=0)
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
-    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
     train(args)

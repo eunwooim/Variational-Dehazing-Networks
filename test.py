@@ -43,6 +43,8 @@ def test():
     # model setting 
     net = VHRN()
     net = nn.DataParallel(net).cuda()
+    print(sum(p.numel() for p in net.parameters()))
+    input('i')
 
     checkpoint = torch.load(args.model_dir)
 

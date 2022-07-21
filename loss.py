@@ -4,7 +4,7 @@ from math import pi, log
 log_max = log(1e4)
 log_min = log(1e-8)
 
-def loss_fn(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
+def loss_fn(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
     '''
     Input: 
         eps1 : variance for prior of Z (epsilon^2를 기본으로 줄 것임)
@@ -33,14 +33,16 @@ def loss_fn(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, 
     # kl_transmission = 0.5 * torch.mean(n2  + (beta-gt_transmission)**2)
 
     # Likelihood
-    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((input - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
-    # lh = 0.5 * torch.mean(((input - (alpha*beta) + A*(1-beta))**2))
+    # lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((input - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
+    sigma = eps1*eps2 + beta**2*eps1 + alpha**2*A*eps2
+    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.mean(sigma)) + 0.5 * torch.mean(torch.div((inp - (alpha*beta) - A*(1-beta))**2,sigma) + 1)
+    # lh = 0.5 * torch.mean(((inp - (alpha*beta) + A*(1-beta))**2))
     
     total_loss = kl_transmission + kl_dehaze + lh
 
     return total_loss, lh, kl_dehaze, kl_transmission
 
-def laplace_loss(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
+def laplace_loss(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
     '''
     Input: 
         eps1 : variance for prior of Z (epsilon^2를 기본으로 줄 것임)
@@ -67,7 +69,7 @@ def laplace_loss(input, out_dehaze, out_transmission, gt_dehaze, gt_transmission
     kl_transmission = torch.mean(n2_div_eps2 + torch.exp(-torch.abs(beta-gt_transmission)/eps2) + torch.abs(beta-gt_transmission)/eps2 - torch.log(n2_div_eps2) -1)    
     
     # Likelihood
-    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((input - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
+    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
     
     total_loss = kl_transmission + kl_dehaze + lh
 
