@@ -25,11 +25,11 @@ def train(args):
     print('Loaded Model')
     criterion = loss_fn
     optimizer = optim.AdamW(model.parameters(), lr = args.lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer,
-                                step_size=args.step_size, gamma=args.gamma)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
+                                milestones=args.milestones, gamma=args.gamma)
     clip_grad_D, clip_grad_T = args.clip_grad_D, args.clip_grad_T
     if args.resume:
-        ckpt = f'{args.ckpt}/{str(arg.resume).zfill(3)}.pth'
+        ckpt = f'{args.ckpt}/{str(args.resume).zfill(3)}.pth'
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         scheduler.load_state_dict(ckpt['lr_scheduler_state_dict'])
@@ -84,13 +84,13 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train.h5')
-    parser.add_argument('--ckpt', type=str, default='./ckpt')
+    parser.add_argument('--ckpt', type=str, default='./ckpt/gau')
     parser.add_argument('--epoch', type=int, default=200)
-    parser.add_argument('--step_size', type=int, default=15)
-    parser.add_argument('--gamma', type=float, default=0.8)
+    parser.add_argument('--milestones', type=list, default=[20,40,70,100,150])
+    parser.add_argument('--gamma', type=float, default=0.5)
     parser.add_argument('--clip_grad_D', type=float, default=1e4)
     parser.add_argument('--clip_grad_T', type=float, default=1e3)
-    parser.add_argument('--log_dir', type=str, default='./log')
+    parser.add_argument('--log_dir', type=str, default='./log/gau')
     parser.add_argument('--patch_size', type=int, default=256)
     parser.add_argument('--augmentation', type=bool, default=True)
 
@@ -100,7 +100,7 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    os.environ[[["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     if isinstance(args.cuda, int):
         os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
     else:

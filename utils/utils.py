@@ -10,10 +10,9 @@ def postprocess(output):
     output = torch.clamp(output, min=0, max=1)
     return (output * 255).permute(1,2,0).numpy()
 
-def load_model(args):
-    model = VHRN()
+def load_model(args, model):
     model = nn.DataParallel(model)
-    ckpt = torch.load(f'{args.ckpt}/{str(args.resume).zfill(3)}.pth')
+    ckpt = torch.load(f'{args.ckpt}/{str(args.ckpt).zfill(3)}.pth')
     model.load_state_dict(ckpt['model_state_dict'])
     return model
 
@@ -27,12 +26,12 @@ def get_A(img, p=0.001):
     return np.max(flat_img.take(idx, axis=0), axis=0)
 
 def he_init(model):
-    for m in net.modules():
+    for m in model.modules():
         if isinstance(m, nn.Conv2d):
             nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-            if m.bias:
-                nn.init.constant(m.bias, 0)
+            if not m.bias is None:
+                nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.BatchNorm2d):
-            nn.init.constant(m.weight, 1)
-            nn.init(constant(m.bias, 0))
+            nn.init.constant_(m.weight, 1)
+            nn.init.constant_(m.bias, 0)
     return model

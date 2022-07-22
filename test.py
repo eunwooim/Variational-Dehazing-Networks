@@ -25,7 +25,7 @@ def set_opts():
     parser.add_argument('--gpu_id', type = int, default = 1)
 
     # model 
-    parser.add_argument('--model_dir', type = str, default='/home/eunu/VHRN/ckpt/lap/')
+    parser.add_argument('--model_dir', type = str, default='/home/eunu/VHRN/ckpt/lap/100.pth')
     parser.add_argument('--dncnn_dir', type = str, default='/home/junsung/VHRN/model/DnCNN/model_31.pth')
     parser.add_argument('--mode', type=str, default='')
     parser.add_argument('--save_img', type = bool, default=False)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     else: 
         os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(x)for x in list(args.gpu_id))
 
-    for i in range(149,160):
+    for i in range(100,101):
         args.model_dir = '/home/eunu/VHRN/ckpt/lap/' + f'{i}.pth'
         print(i)
         test(args)
