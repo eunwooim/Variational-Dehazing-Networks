@@ -5,17 +5,6 @@ from networks.FFANet import FFA
 from networks.Unet import UNet
 
 
-def weight_init_kaiming(net):
-    for m in net.modules():
-        if isinstance(m, nn.Conv2d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
-            if not m.bias is None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.BatchNorm2d):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
-    return net
-
 class VHRN(nn.Module):
     def __init__(self): 
         super(VHRN, self).__init__()

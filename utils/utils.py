@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import torch
-import torch.nn
+import torch.nn as nn
 
 from networks.VHRN import VHRN
 
@@ -14,7 +14,7 @@ def load_model(args):
     model = VHRN()
     model = nn.DataParallel(model)
     ckpt = torch.load(f'{args.ckpt}/{str(args.resume).zfill(3)}.pth')
-    model.load_state_dict(ckpt)
+    model.load_state_dict(ckpt['model_state_dict'])
     return model
 
 def get_A(img, p=0.001):
@@ -25,3 +25,14 @@ def get_A(img, p=0.001):
     flat_img, flat_dc = img.reshape(num_pixels,3), dc.ravel()
     idx = (-flat_dc).argsort()[:int(num_pixels * p)]
     return np.max(flat_img.take(idx, axis=0), axis=0)
+
+def he_init(model):
+    for m in net.modules():
+        if isinstance(m, nn.Conv2d):
+            nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+            if m.bias:
+                nn.init.constant(m.bias, 0)
+        elif isinstance(m, nn.BatchNorm2d):
+            nn.init.constant(m.weight, 1)
+            nn.init(constant(m.bias, 0))
+    return model

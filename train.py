@@ -10,7 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from data.dataloader import TrainSet
-from loss import loss_fn
+from loss import *
 from networks.VHRN import *
 from utils import utils
 
@@ -29,9 +29,14 @@ def train(args):
                                 step_size=args.step_size, gamma=args.gamma)
     clip_grad_D, clip_grad_T = args.clip_grad_D, args.clip_grad_T
     if args.resume:
-        model = utils.load_model(args)
+        ckpt = f'{args.ckpt}/{str(arg.resume).zfill(3)}.pth'
+        model.load_state_dict(ckpt['model_state_dict'])
+        optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        scheduler.load_state_dict(ckpt['lr_scheduler_state_dict'])
         start_epoch = args.resume
-    else: start_epoch = 0
+    else:
+        model = utils.he_init(model)
+        start_epoch = 0
     trainset = TrainSet(args)
     trainset = DataLoader(trainset, shuffle=True, batch_size=args.batch_size,
                             num_workers=8, pin_memory=True)
@@ -69,15 +74,18 @@ def train(args):
         writer.add_scalar('Likelihood', lh, epoch)
         writer.add_scalar('Transmission', trans_loss, epoch)
         writer.add_scalar('Dehazer', dehaze_loss, epoch)
-        torch.save(model.state_dict(), f'{args.ckpt}/{str(epoch+1).zfill(3)}.pth')
+        torch.save({'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'lr_scheduler_state_dict': scheduler.state_dict()
+                    }, f'{args.ckpt}/{str(epoch+1).zfill(3)}.pth')
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=84)
+    parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train.h5')
     parser.add_argument('--ckpt', type=str, default='./ckpt')
-    parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--step_size', type=int, default=15)
     parser.add_argument('--gamma', type=float, default=0.8)
     parser.add_argument('--clip_grad_D', type=float, default=1e4)
@@ -92,6 +100,9 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.cuda
+    os.environ[[["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    if isinstance(args.cuda, int):
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
+    else:
+        os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(x) for x in list(args.cuda))
     train(args)

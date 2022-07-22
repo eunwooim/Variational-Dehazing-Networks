@@ -22,20 +22,20 @@ def set_opts():
     parser.add_argument('--batch_size', type = int, default=1)
 
     # gpu 
-    parser.add_argument('--gpu_id', type = int, default = 3)
+    parser.add_argument('--gpu_id', type = int, default = 1)
 
     # model 
-    parser.add_argument('--model_dir', type = str, default='/home/junsung/nas/model/vhrn/model_21.pth')
+    parser.add_argument('--model_dir', type = str, default='/home/eunu/VHRN/ckpt/lap/')
     parser.add_argument('--dncnn_dir', type = str, default='/home/junsung/VHRN/model/DnCNN/model_31.pth')
     parser.add_argument('--mode', type=str, default='')
-    parser.add_argument('--save_img', type = bool, default=True)
+    parser.add_argument('--save_img', type = bool, default=False)
 
     args = parser.parse_args()
 
     return args 
 
  
-def test(): 
+def test(args):
     # Dataset setting
     dataset = TestSet(args)
     dataloader = DataLoader(dataset = dataset, batch_size = args.batch_size, shuffle=False)
@@ -43,8 +43,7 @@ def test():
     # model setting 
     net = VHRN()
     net = nn.DataParallel(net).cuda()
-    print(sum(p.numel() for p in net.parameters()))
-    input('i')
+    # print(sum(p.numel() for p in net.parameters()))
 
     checkpoint = torch.load(args.model_dir)
 
@@ -145,9 +144,7 @@ if __name__ == '__main__':
     else: 
         os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(x)for x in list(args.gpu_id))
 
-    test() 
-    
-    if args.mode == 'dncnn': 
-        test_dncnn()    
-
-    
+    for i in range(149,160):
+        args.model_dir = '/home/eunu/VHRN/ckpt/lap/' + f'{i}.pth'
+        print(i)
+        test(args)
