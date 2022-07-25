@@ -30,6 +30,7 @@ def train(args):
     clip_grad_D, clip_grad_T = args.clip_grad_D, args.clip_grad_T
     if args.resume:
         ckpt = f'{args.ckpt}/{str(args.resume).zfill(3)}.pth'
+        ckpt = torch.load(ckpt)
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         scheduler.load_state_dict(ckpt['lr_scheduler_state_dict'])
