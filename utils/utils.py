@@ -8,11 +8,11 @@ from networks.VHRN import VHRN
 
 def postprocess(output):
     output = torch.clamp(output, min=0, max=1)
-    return (output * 255).permute(1,2,0).numpy()
+    return (output * 255).permute(1,2,0).cpu().numpy().astype(np.uint8)
 
 def load_model(args, model):
     model = nn.DataParallel(model)
-    ckpt = torch.load(f'{args.ckpt}/{str(args.ckpt).zfill(3)}.pth')
+    ckpt = torch.load(args.ckpt)
     model.load_state_dict(ckpt['model_state_dict'])
     return model
 
