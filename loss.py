@@ -44,10 +44,10 @@ def loss_fn(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, si
 
 def laplace_loss(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
     '''
-    Input: 
-        eps1 : variance for prior of Z (epsilon^2를 기본으로 줄 것임)
-        eps2 : variance for prior of T 
-        sigma : variance of y 
+    Info: 
+        laplace에서는 epsilon을 제곱하지 않은 값으로 입력값을 받음 
+        J ~ Laplace(gt_dehaze, eps1), E(J) = gt_dehaze, Var(J) = 2*eps1**2
+        T ~ Laplace(gt_transmission, eps2), E(T) = gt_transmission, Var(T) = 2*eps2**2
     '''
     
     # out_dehaze, out_transmission = torch.clamp(out_dehaze, min=0, max=1), torch.clamp(out_transmission, min=0, max=1)
@@ -70,9 +70,10 @@ def laplace_loss(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, 
     
     # Likelihood
     # sigma = eps1*eps2 + out_transmission**2*eps1 + (gt_dehaze**2+A**2)*eps2
+    eps1, eps2 = 2*eps1**2, 2*eps2**2
     sigma = eps1*eps2 + gt_transmission**2*eps1 + gt_dehaze**2*eps2 + A**2*gt_transmission**2 - 2*A*gt_dehaze*eps2
     lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.mean(sigma)) + 0.5 * torch.mean(torch.div((inp - (alpha*beta) - A*(1-beta))**2,sigma) + 1)
-    #lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
+    # lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
     
     total_loss = kl_transmission + kl_dehaze + lh
 
