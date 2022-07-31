@@ -72,7 +72,7 @@ def laplace_loss(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, 
     # sigma = eps1*eps2 + out_transmission**2*eps1 + (gt_dehaze**2+A**2)*eps2
     eps1, eps2 = 2*eps1**2, 2*eps2**2
     sigma = eps1*eps2 + gt_transmission**2*eps1 + gt_dehaze**2*eps2 + A**2*gt_transmission**2 - 2*A*gt_dehaze*eps2
-    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.mean(sigma)) + 0.5 * torch.mean(torch.div((inp - (alpha*beta) - A*(1-beta))**2,sigma) + 1)
+    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.mean(torch.log(torch.tensor(sigma))) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
     # lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
     
     total_loss = kl_transmission + kl_dehaze + lh
