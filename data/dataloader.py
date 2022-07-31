@@ -18,16 +18,16 @@ class TrainSet(Dataset):
         with h5py.File(args.train_path, 'r') as f:
             self.clear = np.array(f['clear'])
             self.hazy = np.array(f['hazy'])
-            self.trans = np.array(f['trans'])
+            self.trans = np.expand_dims(np.array(f['trans']), -1)
+            self.A = np.array(f['A'])
 
     def __len__(self):
         return (10 * len(self.clear))
 
     def __getitem__(self, idx):
         clear, hazy, trans = self.clear[idx//10], self.hazy[idx], self.trans[idx]
-        trans = np.expand_dims(trans, axis=-1)
+        A = torch.tensor(self.A[idx]).reshape(1,1,1).float()
         clear, hazy, trans = self.random_crop(clear, hazy, trans)
-        A = torch.tensor(utils.get_A(hazy/255)).reshape(3,1,1).float()
         if self.args.augmentation and np.random.choice([0,1]):
             clear, hazy, trans = np.flip(clear,1), np.flip(hazy,1), np.flip(trans,1)
         clear, hazy, trans = to_tensor(clear), to_tensor(hazy), to_tensor(trans)
