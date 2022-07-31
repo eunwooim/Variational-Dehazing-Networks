@@ -56,7 +56,7 @@ class TestSet(Dataset):
     def __getitem__(self, idx):
         return (to_tensor(self.clear[idx//10]), to_tensor(self.hazy[idx]))
 
-class Train_DnCNN(Dataset): 
+class BaseTrainSet(Dataset): 
     def __init__(self, args):
         self.args = args
         self.pch_size = args.patch_size
@@ -85,7 +85,7 @@ class Train_DnCNN(Dataset):
         return [x[ind_H:ind_H+self.pch_size, ind_W:ind_W+self.pch_size] for x in im]
 
 
-class Train_Trans_DnCNN(Dataset): 
+class TransTrainSet(Dataset): 
     def __init__(self, args):
         self.args = args
         with h5py.File(args.train_path, 'r') as f:

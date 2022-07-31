@@ -19,7 +19,7 @@ def train(args):
     os.makedirs(args.ckpt, exist_ok=True)
     os.makedirs(args.log_dir, exist_ok=True)
     writer = SummaryWriter(args.log_dir)
-    model = VHRN()
+    model = VFFA()
     model = nn.DataParallel(model).cuda()
     print('Loaded Model')
     criterion = laplace_loss
@@ -81,21 +81,21 @@ def train(args):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train.h5')
-    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/1e-7')
+    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/FFA')
     parser.add_argument('--epoch', type=int, default=200)
     parser.add_argument('--milestones', type=list, default=[20,40,70,100,150])
     parser.add_argument('--gamma', type=float, default=0.5)
     parser.add_argument('--clip_grad_D', type=float, default=1e4)
     parser.add_argument('--clip_grad_T', type=float, default=1e3)
-    parser.add_argument('--log_dir', type=str, default='./log/1e-7')
+    parser.add_argument('--log_dir', type=str, default='./log/FFA')
     parser.add_argument('--patch_size', type=int, default=256)
     parser.add_argument('--augmentation', type=bool, default=True)
     parser.add_argument('--eps', type=float, default=1e-7)
 
-    parser.add_argument('--cuda', type=int, default=1)
+    parser.add_argument('--cuda', type=int, default=0)
     parser.add_argument('--resume', type=int, default=0)
     return parser.parse_args()
 
