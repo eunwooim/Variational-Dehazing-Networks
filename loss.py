@@ -1,80 +1,41 @@
 import torch 
 from math import pi, log 
 
+
 log_max = log(1e4)
 log_min = log(1e-8)
 
-def loss_fn(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
-    '''
-    Input: 
-        eps1 : variance for prior of Z (epsilon^2를 기본으로 줄 것임)
-        eps2 : variance for prior of T 
-        sigma : variance of y 
-    '''
-    
-    # out_dehaze, out_transmission = torch.clamp(out_dehaze, min=0, max=1), torch.clamp(out_transmission, min=0, max=1)
-    
-    # parameters predicted of dehaze 
-    alpha = out_dehaze[:, :3]
-    m2 = torch.exp(out_dehaze[:,3:].clamp_(min=log_min, max= log_max))
-
-    # parameters predicted of transmission
-    beta = out_transmission[:, :1]
-    n2 = torch.exp(out_transmission[:, 1:].clamp_(min=log_min, max=log_max))
-
-    # KL divergence for dehaze 
-    m2_div_eps1 = torch.div(m2, eps1)
-    kl_dehaze = 0.5 * torch.mean(-torch.log(m2_div_eps1) -1 + m2_div_eps1 + ((alpha-gt_dehaze)**2 / eps1))
-    # kl_dehaze = 0.5 * torch.mean(m2  + (alpha-gt_dehaze)**2)
-
-    # KL divergence for transmission 
-    n2_div_eps2 = torch.div(n2, eps2)
-    kl_transmission = 0.5 * torch.mean(-torch.log(n2_div_eps2) -1 + n2_div_eps2 + ((beta-gt_transmission)**2 / eps2))    
-    # kl_transmission = 0.5 * torch.mean(n2  + (beta-gt_transmission)**2)
+def loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps, kl_j, kl_t):
+    alpha = d_out[:,:3]
+    m2 = torch.exp(d_out[:,3:].clamp_(min=log_min, max=log_max))
+    beta = t_out[:,:1]
+    n2 = torch.exp(t_out[:,1:].clamp_(min=log_min, max=log_max))
 
     # Likelihood
     lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
-    # sigma = eps1*eps2 + gt_transmission**2*eps1 + (gt_dehaze**2+A**2)*eps2
-    # lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.mean(sigma)) + 0.5 * torch.mean(torch.div((inp - (alpha*beta) - A*(1-beta))**2,sigma) + 1)
-    # lh = 0.5 * torch.mean(((inp - (alpha*beta) + A*(1-beta))**2))
-    
-    total_loss = kl_transmission + kl_dehaze + lh
 
-    return total_loss, lh, kl_dehaze, kl_transmission
+    # KL divergence for dehazer
+    if kl_j == 'gaussian':
+        m2 = torch.div(m2, eps)
+        kl_dehaze = 0.5 * torch.mean(-torch.log(m2) -1 + m2 + ((alpha-d_gt)**2 / eps))
+    elif kl_j == 'laplace':
+        eps = torch.sqrt(eps/2)
+        m2 = torch.div(m2, eps)
+        kl_dehaze = torch.mean(m2 + torch.exp(-torch.abs(alpha-d_gt)/eps) + torch.abs(alpha-d_gt)/eps - torch.log(m2) -1)
 
-def laplace_loss(inp, out_dehaze, out_transmission, gt_dehaze, gt_transmission, A, sigma, eps1, eps2):
-    '''
-    Info: 
-        laplace에서는 epsilon을 제곱하지 않은 값으로 입력값을 받음 
-        J ~ Laplace(gt_dehaze, eps1), E(J) = gt_dehaze, Var(J) = 2*eps1**2
-        T ~ Laplace(gt_transmission, eps2), E(T) = gt_transmission, Var(T) = 2*eps2**2
-    '''
+    # KL divergence for transmission
+    if kl_t == 'gaussian':
+        n2 = torch.div(n2, eps)
+        kl_transmission = 0.5 * torch.mean(-torch.log(n2) -1 + n2 + ((beta-t_gt)**2 / eps))
+    elif kl_t == 'laplace':
+        eps = torch.sqrt(eps/2)
+        n2 = torch.div(n2, eps)
+        kl_transmission = torch.mean(n2 + torch.exp(-torch.abs(beta-t_gt)/eps) + torch.abs(beta-t_gt)/eps - torch.log(n2) -1)
+    elif kl_t == 'lognormal':
+        torch.log(1+eps/t_gt)
+        n2 = torch.div(n2, eps)
+        kl_transmission = torch.div(torch.mean((t_gt-beta)**2 + n2), 2*eps) + torch.mean(torch.log(torch.div(1,n2))
     
-    # out_dehaze, out_transmission = torch.clamp(out_dehaze, min=0, max=1), torch.clamp(out_transmission, min=0, max=1)
-    
-    # parameters predicted of dehaze 
-    alpha = out_dehaze[:, :3]
-    m2 = torch.exp(out_dehaze[:,3:].clamp_(min=log_min, max= log_max))
-
-    # parameters predicted of transmission
-    beta = out_transmission[:, :1]
-    n2 = torch.exp(out_transmission[:, 1:].clamp_(min=log_min, max=log_max))
-
-    # KL divergence for dehaze 
-    m2_div_eps1 = torch.div(m2, eps1)
-    kl_dehaze = torch.mean(m2_div_eps1 + torch.exp(-torch.abs(alpha-gt_dehaze)/eps1) + torch.abs(alpha-gt_dehaze)/eps1 - torch.log(m2_div_eps1) -1)
-    
-    # KL divergence for transmission 
-    n2_div_eps2 = torch.div(n2, eps2)
-    kl_transmission = torch.mean(n2_div_eps2 + torch.exp(-torch.abs(beta-gt_transmission)/eps2) + torch.abs(beta-gt_transmission)/eps2 - torch.log(n2_div_eps2) -1)    
-    
-    # Likelihood
-    # sigma = eps1*eps2 + out_transmission**2*eps1 + (gt_dehaze**2+A**2)*eps2
-    eps1, eps2 = 2*eps1**2, 2*eps2**2
-    sigma = eps1*eps2 + gt_transmission**2*eps1 + gt_dehaze**2*eps2 + A**2*gt_transmission**2 - 2*A*gt_dehaze*eps2
-    lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.mean(torch.log(torch.tensor(sigma))) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
-    # lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5* torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
-    
-    total_loss = kl_transmission + kl_dehaze + lh
+    total_loss = lh + kl_dehaze + kl_transmission
 
     return total_loss, lh, kl_dehaze, kl_transmission
