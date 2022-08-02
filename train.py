@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from data.dataloader import TrainSet
-from loss import *
+from loss import vlb_loss
 from networks.VHRN import *
 from utils import utils
 
@@ -19,14 +19,13 @@ def train(args):
     os.makedirs(args.ckpt, exist_ok=True)
     os.makedirs(args.log_dir, exist_ok=True)
     writer = SummaryWriter(args.log_dir)
-    model = VFFA()
+    model = VHRN()
     model = nn.DataParallel(model).cuda()
     print('Loaded Model')
-    criterion = laplace_loss
+    criterion = vlb_loss
     optimizer = optim.AdamW(model.parameters(), lr = args.lr)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
                                 milestones=args.milestones, gamma=args.gamma)
-    clip_grad_D, clip_grad_T = args.clip_grad_D, args.clip_grad_T
     if args.resume:
         ckpt = f'{args.ckpt}/{str(args.resume).zfill(3)}.pth'
         ckpt = torch.load(ckpt)
@@ -55,13 +54,12 @@ def train(args):
                 clear, hazy, trans, A = [x.cuda().float() for x in batch]
                 optimizer.zero_grad()
                 dehaze_est, trans_est = model(hazy, 'train')
-                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=1e-6, eps1=args.eps, eps2=args.eps)
+                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps, eps2=args.eps, kl_j='laplace', kl_t='laplace')
                 loss.backward()
 
-                total_norm_D = nn.utils.clip_grad_norm_(param_D, clip_grad_D)
-                total_norm_T = nn.utils.clip_grad_norm_(param_T, clip_grad_T)
-                grad_norm_D = (grad_norm_D*(i/(i+1)) + total_norm_D/(i+1))
-                grad_norm_T = (grad_norm_T*(i/(i+1)) + total_norm_T/(i+1))
+                clip_value = args.grad_clip / scheduler.get_last_lr()[0]
+                nn.utils.clip_grad_norm_(param_D, clip_value)
+                nn.utils.clip_grad_norm_(param_T, clip_value)
 
                 optimizer.step()
                 running_loss += loss.item()/length
@@ -83,19 +81,19 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=2e-4)
-    parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train.h5')
-    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/FFA')
-    parser.add_argument('--epoch', type=int, default=200)
-    parser.add_argument('--milestones', type=list, default=[20,40,70,100,150])
+    parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train_with_A.h5')
+    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/eps/1e-4')
+    parser.add_argument('--epoch', type=int, default=80)
+    parser.add_argument('--milestones', type=list, default=[10,20,30,45,60])
     parser.add_argument('--gamma', type=float, default=0.5)
-    parser.add_argument('--clip_grad_D', type=float, default=1e4)
-    parser.add_argument('--clip_grad_T', type=float, default=1e3)
-    parser.add_argument('--log_dir', type=str, default='./log/FFA')
+    parser.add_argument('--grad_clip', type=float, default=0.5)
+    parser.add_argument('--log_dir', type=str, default='/home/eunu/nas/vhrn_log/eps/1e-4')
     parser.add_argument('--patch_size', type=int, default=256)
     parser.add_argument('--augmentation', type=bool, default=True)
-    parser.add_argument('--eps', type=float, default=1e-7)
+    parser.add_argument('--eps', type=float, default=1e-4)
+    parser.add_argument('--sigma', type=float, default=1e-6)
 
-    parser.add_argument('--cuda', type=int, default=0)
+    parser.add_argument('--cuda', type=int, default=2)
     parser.add_argument('--resume', type=int, default=0)
     return parser.parse_args()
 
