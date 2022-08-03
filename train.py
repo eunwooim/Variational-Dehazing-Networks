@@ -54,7 +54,7 @@ def train(args):
                 clear, hazy, trans, A = [x.cuda().float() for x in batch]
                 optimizer.zero_grad()
                 dehaze_est, trans_est = model(hazy, 'train')
-                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps, eps2=args.eps, kl_j='laplace', kl_t='laplace')
+                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps, eps2=args.eps, kl_j=args.kl_j, kl_t=args.kl_t)
                 loss.backward()
 
                 clip_value = args.grad_clip / scheduler.get_last_lr()[0]
@@ -92,6 +92,8 @@ def get_args():
     parser.add_argument('--augmentation', type=bool, default=True)
     parser.add_argument('--eps', type=float, default=1e-4)
     parser.add_argument('--sigma', type=float, default=1e-6)
+    parser.add_argument('--kl_j', type=str, default='laplace')
+    parser.add_argument('--kl_t', type=str, default='laplace'
 
     parser.add_argument('--cuda', type=int, default=2)
     parser.add_argument('--resume', type=int, default=0)
