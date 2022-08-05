@@ -8,7 +8,10 @@ from networks.VHRN import VHRN
 
 def postprocess(output):
     output = torch.clamp(output, min=0, max=1)
-    return (output * 255).permute(1,2,0).cpu().numpy().astype(np.uint8)
+    if len(output.shape) == 3:
+        return (output * 255).permute(1,2,0).cpu().numpy().astype(np.uint8)
+    elif len(output.shape) == 4:
+        return (output * 255).permute(0,2,3,1).cpu().numpy().astype(np.uint8)
 
 def load_model(args, model):
     model = nn.DataParallel(model)
