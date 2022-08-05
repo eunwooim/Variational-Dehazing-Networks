@@ -1,6 +1,7 @@
 import argparse
 import os
 
+from skimage.metrics import peak_signal_noise_ratio as psnr
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,8 +9,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from data.dataloader import TrainSet
-from loss import vlb_loss
+from data.dataloader import TrainSet, TestSet
+from loss import *
 from networks.VHRN import *
 from utils import utils
 
@@ -39,17 +40,20 @@ def train(args):
     trainset = TrainSet(args)
     trainset = DataLoader(trainset, shuffle=True, batch_size=args.batch_size,
                             num_workers=8, pin_memory=True)
+    validation = TestSet(args)
+    validation = DataLoader(validation, shuffle=False, batch_size=args.batch_size,
+                            num_workers=8, pin_memory=True)
     print('Loaded Data')
 
     param_D = [x for name, x in model.named_parameters() if 'dnet' in name.lower()]
     param_T = [x for name, x in model.named_parameters() if 'tnet' in name.lower()]
 
-    model.train()
-    length = len(trainset)
+    train_len, val_len = len(trainset), len(validation)
     for epoch in range(start_epoch, args.epoch):
+        model.train()
         running_loss = lh_loss = trans_loss = dehaze_loss = 0
-        grad_norm_D = grad_norm_T = 0
-        with tqdm(total=length, desc=f'Epoch {epoch+1}', ncols=70) as pbar:
+        val_loss = lh_val = trans_val = dehaze_val = 0
+        with tqdm(total=train_len, desc=f'Epoch {epoch+1}', ncols=70) as pbar:
             for i, batch in enumerate(trainset):
                 clear, hazy, trans, A = [x.cuda().float() for x in batch]
                 optimizer.zero_grad()
@@ -62,16 +66,36 @@ def train(args):
                 nn.utils.clip_grad_norm_(param_T, clip_value)
 
                 optimizer.step()
-                running_loss += loss.item()/length
-                lh_loss += lh.item()/length
-                trans_loss += kl_trans.item()/length
-                dehaze_loss += kl_dehaze.item()/length
+                running_loss += loss.item()/train_len
+                lh_loss += lh.item()/train_len
+                trans_loss += kl_trans.item()/train_len
+                dehaze_loss += kl_dehaze.item()/train_len
                 pbar.update(1)
+            model.eval()
+            PSNR = 0
+            for i, batch in enumerate(validation):
+                clear, hazy = [x.cuda().float() for x in batch]
+                with torch.no_grad():
+                    dehaze_est, trans_est = model(hazy, 'train')
+                    kl_dehaze = loss_val(dehaze_est, clear, eps1=args.eps, kl_j=args.kl_j)
+                dehaze_est = utils.postprocess(dehaze_est[:,:3])
+                clear = utils.postprocess(clear)
+
+                for d,c in zip(dehaze_est, clear):
+                    PSNR += psnr(d,c)
+                val_loss += loss.item()/val_len
+                lh_val += lh.item()/val_len
+                trans_val += kl_trans.item()/val_len
+                dehaze_val += kl_dehaze.item()/val_len
         scheduler.step()
-        writer.add_scalar('Loss', running_loss, epoch)
-        writer.add_scalar('Likelihood', lh, epoch)
-        writer.add_scalar('Transmission', trans_loss, epoch)
-        writer.add_scalar('Dehazer', dehaze_loss, epoch)
+
+        writer.add_scalar('Train Loss', running_loss, epoch)
+        writer.add_scalar('Train Likelihood', lh, epoch)
+        writer.add_scalar('Train Transmission', trans_loss, epoch)
+        writer.add_scalar('Train Dehazer', dehaze_loss, epoch)
+        writer.add_scalar('Validation Transmission', dehaze_val, epoch)
+        writer.add_scalar('PSNR', PSNR/val_len, epoch)
+
         torch.save({'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'lr_scheduler_state_dict': scheduler.state_dict()
@@ -82,18 +106,19 @@ def get_args():
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train_with_A.h5')
-    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/eps/1e-4')
+    parser.add_argument('--test_path', type=str, default='/home/eunu/nas/reside/in_val.h5')
+    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/dist/gg/1e-7')
     parser.add_argument('--epoch', type=int, default=80)
     parser.add_argument('--milestones', type=list, default=[10,20,30,45,60])
     parser.add_argument('--gamma', type=float, default=0.5)
     parser.add_argument('--grad_clip', type=float, default=0.5)
-    parser.add_argument('--log_dir', type=str, default='/home/eunu/nas/vhrn_log/eps/1e-4')
+    parser.add_argument('--log_dir', type=str, default='/home/eunu/nas/vhrn_log/dist/gg/1e-7')
     parser.add_argument('--patch_size', type=int, default=256)
     parser.add_argument('--augmentation', type=bool, default=True)
-    parser.add_argument('--eps', type=float, default=1e-4)
+    parser.add_argument('--eps', type=float, default=1e-7)
     parser.add_argument('--sigma', type=float, default=1e-6)
-    parser.add_argument('--kl_j', type=str, default='laplace')
-    parser.add_argument('--kl_t', type=str, default='laplace'
+    parser.add_argument('--kl_j', type=str, default='gaussian')
+    parser.add_argument('--kl_t', type=str, default='gaussian')
 
     parser.add_argument('--cuda', type=int, default=2)
     parser.add_argument('--resume', type=int, default=0)
