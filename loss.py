@@ -17,7 +17,7 @@ def vlb_loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps1, eps2, kl_j, kl_t):
     # KL divergence for dehazer
     if kl_j == 'gaussian':
         m2_div_eps1 = torch.div(m2, eps1)
-        kl_dehaze = 0.5 * torch.mean(-torch.log(m2_div_eps1) -1 + m2_div_eps1 + ((alpha-d_gt)**2 / m2_div_eps1))
+        kl_dehaze = 0.5 * torch.mean(-torch.log(m2_div_eps1) -1 + m2_div_eps1 + ((alpha-d_gt)**2 / eps1))
     elif kl_j == 'laplace':
         m2_div_eps1 = torch.div(m2, eps1)
         kl_dehaze = torch.mean(m2_div_eps1 + torch.exp(-torch.abs(alpha-d_gt)/eps1) + torch.abs(alpha-d_gt)/eps1 - torch.log(m2_div_eps1) -1)
@@ -25,7 +25,7 @@ def vlb_loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps1, eps2, kl_j, kl_t):
     # KL divergence for transmission
     if kl_t == 'gaussian':
         n2_div_eps2 = torch.div(n2, eps2)
-        kl_transmission = 0.5 * torch.mean(-torch.log(n2_div_eps2) -1 + n2_div_eps2 + ((beta-t_gt)**2 / n2_div_eps2))
+        kl_transmission = 0.5 * torch.mean(-torch.log(n2_div_eps2) -1 + n2_div_eps2 + ((beta-t_gt)**2 / eps2))
     elif kl_t == 'laplace':
         n2_div_eps2 = torch.div(n2, eps2)
         kl_transmission = torch.mean(n2_div_eps2 + torch.exp(-torch.abs(beta-t_gt)/eps2) + torch.abs(beta-t_gt)/eps2 - torch.log(n2_div_eps2) -1)
