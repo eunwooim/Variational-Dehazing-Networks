@@ -37,3 +37,17 @@ def vlb_loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps1, eps2, kl_j, kl_t):
     total_loss = lh + kl_dehaze + kl_transmission
 
     return total_loss, lh, kl_dehaze, kl_transmission
+
+def loss_val(d_out, d_gt, eps1, kl_j):
+    alpha = d_out[:,:3]
+    m2 = torch.exp(d_out[:,3:].clamp_(min=log_min, max=log_max))
+
+    # KL divergence for dehazer
+    if kl_j == 'gaussian':
+        m2_div_eps1 = torch.div(m2, eps1)
+        kl_dehaze = 0.5 * torch.mean(-torch.log(m2_div_eps1) -1 + m2_div_eps1 + ((alpha-d_gt)**2 / m2_div_eps1))
+    elif kl_j == 'laplace':
+        m2_div_eps1 = torch.div(m2, eps1)
+        kl_dehaze = torch.mean(m2_div_eps1 + torch.exp(-torch.abs(alpha-d_gt)/eps1) + torch.abs(alpha-d_gt)/eps1 - torch.log(m2_div_eps1) -1)
+
+    return kl_dehaze
