@@ -28,7 +28,9 @@ class TrainSet(Dataset):
         clear, hazy, trans = self.clear[idx//10], self.hazy[idx], self.trans[idx]
         A = torch.tensor(self.A[idx]).reshape(1,1,1).float()
         clear, hazy, trans = self.random_crop(clear, hazy, trans)
-        if self.args.augmentation and np.random.choice([0,1]):
+        if np.random.choice([0,1]):
+            clear, hazy, trans = np.flip(clear,0), np.flip(hazy,0), np.flip(trans,0)
+        if np.random.choice([0,1]):
             clear, hazy, trans = np.flip(clear,1), np.flip(hazy,1), np.flip(trans,1)
         clear, hazy, trans = to_tensor(clear), to_tensor(hazy), to_tensor(trans)
         return (clear, hazy, trans, A)
