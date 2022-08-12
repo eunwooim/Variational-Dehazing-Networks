@@ -35,14 +35,13 @@ def train(args):
         scheduler.load_state_dict(ckpt['lr_scheduler_state_dict'])
         start_epoch = args.resume
     else:
-        model = utils.he_init(model)
         start_epoch = 0
     trainset = TrainSet(args)
     trainset = DataLoader(trainset, shuffle=True, batch_size=args.batch_size,
                             num_workers=8, pin_memory=True)
     validation = TestSet(args)
-    validation = DataLoader(validation, shuffle=False, batch_size=args.batch_size,
-                            num_workers=8, pin_memory=True)
+    validation = DataLoader(validation, shuffle=False, batch_size=1,
+                            num_workers=1, pin_memory=True)
     print('Loaded Data')
 
     param_D = [x for name, x in model.named_parameters() if 'dnet' in name.lower()]
@@ -51,50 +50,43 @@ def train(args):
     train_len, val_len = len(trainset), len(validation)
     for epoch in range(start_epoch, args.epoch):
         model.train()
-        running_loss = lh_loss = trans_loss = dehaze_loss = 0
-        val_loss = lh_val = trans_val = dehaze_val = 0
-        with tqdm(total=train_len, desc=f'Epoch {epoch+1}', ncols=70) as pbar:
+        running_loss = lh_loss = trans_loss = dehaze_loss = val_loss = PSNR = 0
+        with tqdm(total=len(trainset), desc=f'Epoch {epoch+1}', ncols=60) as pbar:
             for i, batch in enumerate(trainset):
                 clear, hazy, trans, A = [x.cuda().float() for x in batch]
                 optimizer.zero_grad()
                 dehaze_est, trans_est = model(hazy, 'train')
-                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps, eps2=args.eps, kl_j=args.kl_j, kl_t=args.kl_t)
-                loss.backward()
+                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps1, eps2=args.eps2, kl_j=args.kl_j, kl_t=args.kl_t)
 
                 clip_value = args.grad_clip / scheduler.get_last_lr()[0]
                 nn.utils.clip_grad_norm_(param_D, clip_value)
                 nn.utils.clip_grad_norm_(param_T, clip_value)
+                loss.backward()
 
                 optimizer.step()
-                running_loss += loss.item()/train_len
-                lh_loss += lh.item()/train_len
-                trans_loss += kl_trans.item()/train_len
-                dehaze_loss += kl_dehaze.item()/train_len
+                running_loss += loss.item() / train_len
+                lh_loss += lh.item() / train_len
+                trans_loss += kl_trans.item() / train_len
+                dehaze_loss += kl_dehaze.item() / train_len
                 pbar.update(1)
-            model.eval()
-            PSNR = 0
-            for i, batch in enumerate(validation):
-                clear, hazy = [x.cuda().float() for x in batch]
-                with torch.no_grad():
-                    dehaze_est, trans_est = model(hazy, 'train')
-                    kl_dehaze = loss_val(dehaze_est, clear, eps1=args.eps, kl_j=args.kl_j)
-                dehaze_est = utils.postprocess(dehaze_est[:,:3])
-                clear = utils.postprocess(clear)
-
-                for d,c in zip(dehaze_est, clear):
-                    PSNR += psnr(d,c)
-                val_loss += loss.item()/val_len
-                lh_val += lh.item()/val_len
-                trans_val += kl_trans.item()/val_len
-                dehaze_val += kl_dehaze.item()/val_len
+        model.eval()
+        for batch in validation:
+            clear, hazy = [x.cuda().float() for x in batch]
+            with torch.no_grad():
+                dehaze_est, _ = model(hazy, 'train')
+                val_dehaze = loss_val(dehaze_est, clear, eps1=args.eps1, kl_j=args.kl_j)
+                val_loss += val_dehaze / train_len
+            dehaze_est = utils.postprocess(dehaze_est[:,:3])
+            clear = utils.postprocess(clear)
+            PSNR += psnr(dehaze_est, clear)
         scheduler.step()
 
-        writer.add_scalar('Train Loss', running_loss, epoch)
-        writer.add_scalar('Train Likelihood', lh, epoch)
-        writer.add_scalar('Train Transmission', trans_loss, epoch)
-        writer.add_scalar('Train Dehazer', dehaze_loss, epoch)
-        writer.add_scalar('Validation Transmission', dehaze_val, epoch)
-        writer.add_scalar('PSNR', PSNR/val_len, epoch)
+        writer.add_scalar('Train Loss', running_loss, epoch+1)
+        writer.add_scalar('Train Likelihood', lh, epoch+1)
+        writer.add_scalar('Train Transmission', trans_loss, epoch+1)
+        writer.add_scalar('Train Dehazer', dehaze_loss, epoch+1)
+        writer.add_scalar('Validation Loss', dehaze_val, epoch+1)
+        writer.add_scalar('PSNR', PSNR/val_len, epoch+1)
 
         torch.save({'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
