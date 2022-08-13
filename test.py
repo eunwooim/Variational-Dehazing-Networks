@@ -23,21 +23,25 @@ def test(args, testset):
     for i, data in enumerate(testset):
         gt, corrupt = [x.cuda().float() for x in data]
         with torch.no_grad():
-            est = model(corrupt, mode='test')
+            est, trans = model(corrupt, mode='train')
         est = utils.postprocess(est.squeeze()[:3])
         gt = utils.postprocess(gt.squeeze())
+        trans = utils.postprocess(trans.squeeze()[:1])
         PSNR.append(psnr(gt, est))
         SSIM.append(ssim(gt, est, channel_axis=2))
         if i+1 in args.save_img:
             est = cv2.cvtColor(est, cv2.COLOR_BGR2RGB)
             gt = cv2.cvtColor(gt, cv2.COLOR_BGR2RGB)
-            buffer.append([gt, est])
+            corrupt = cv2.cvtColor(corrupt, cv2.COLOR_BGR2RGB)
+            buffer.append([gt, est, trans, corrupt])
             print(f'saved {i+1}')
 
     if args.save_img:
         for idx, items in zip(args.save_img, buffer):
             cv2.imwrite(f'{args.save_path}/gt_{idx}.jpg', items[0])
             cv2.imwrite(f'{args.save_path}/est_{idx}.jpg', items[1])
+            cv2.imwrite(f'{args.save_path}/trans_{idx}.jpg', items[2])
+            cv2.imwrite(f'{args.save_path}/corrupt_{idx}.jpg', items[3])
     
     return (np.mean(PSNR), np.mean(SSIM))
 
