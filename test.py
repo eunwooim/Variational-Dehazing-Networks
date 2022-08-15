@@ -22,6 +22,10 @@ def test(args, testset):
 
     for i, data in enumerate(testset):
         gt, corrupt = [x.cuda().float() for x in data]
+        _, _, h, w = corrupt.shape
+        if h % 16: h -= h % 16
+        if w % 16: w -= w % 16
+        gt, corrupt = gt[:,:,:h,:w], corrupt[:,:,:h,:w]
         with torch.no_grad():
             est, trans = model(corrupt, mode='train')
         est = utils.postprocess(est.squeeze()[:3])
