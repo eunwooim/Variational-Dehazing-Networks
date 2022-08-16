@@ -32,7 +32,7 @@ def vlb_loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps1, eps2, kl_j, kl_t):
         n2_div_eps2 = torch.div(n2, eps2)
         kl_transmission = torch.mean(n2_div_eps2 + torch.exp(-torch.abs(beta-t_gt)/eps2) + torch.abs(beta-t_gt)/eps2 - torch.log(n2_div_eps2) -1)
     elif kl_t == 'lognormal':
-        kl_transmission = torch.div(torch.mean((torch.log(beta)-torch.log(t_gt))**2 + n2),eps2) - 0.5 + torch.log(torch.mean(torch.div(eps2,n2)))
+        kl_transmission = torch.div(torch.mean((torch.log(beta)-torch.log(t_gt))**2 + n2),2*eps2) - 0.5 + torch.log(torch.mean(torch.div(eps2,n2)))
 
     total_loss = lh + kl_dehaze + kl_transmission
 
