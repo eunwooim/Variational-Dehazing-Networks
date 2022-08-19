@@ -7,11 +7,9 @@ log_min = 1e-8
 
 def vlb_loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps1, eps2, kl_j, kl_t):
     alpha = d_out[:,:3]
-    m2 = torch.exp(d_out[:,3:].clamp_(min=log_min, max=log_max))
+    m2 = torch.clamp(d_out[:,3:], min=1e-10)
     beta = t_out[:,:1]
-    n2 = torch.exp(t_out[:,1:].clamp_(min=log_min, max=log_max))
-    if torch.min(beta) < log_min:
-        beta = torch.clamp(beta, min=log_min, max=1)
+    n2 = torch.clamp(t_out[:,1:], min=1e-10)
 
     # Likelihood
     lh = 0.5 * torch.log(torch.tensor(2*pi)) + 0.5 * torch.log(torch.tensor(sigma)) + 0.5 * torch.mean(((inp - (alpha*beta) - A*(1-beta))**2)/sigma + 1)
