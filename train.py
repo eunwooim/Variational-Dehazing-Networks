@@ -44,9 +44,6 @@ def train(args):
                             num_workers=1, pin_memory=True)
     print('Loaded Data')
 
-    param_D = [x for name, x in model.named_parameters() if 'dnet' in name.lower()]
-    param_T = [x for name, x in model.named_parameters() if 'tnet' in name.lower()]
-
     train_len, val_len = len(trainset), len(validation)
     for epoch in range(start_epoch, args.epoch):
         model.train()
@@ -58,9 +55,8 @@ def train(args):
                 dehaze_est, trans_est = model(hazy, 'train')
                 loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps1, eps2=args.eps2, kl_j=args.kl_j, kl_t=args.kl_t)
 
-                clip_value = args.grad_clip / scheduler.get_last_lr()[0]
-                nn.utils.clip_grad_norm_(param_D, clip_value)
-                nn.utils.clip_grad_norm_(param_T, clip_value)
+                nn.utils.clip_grad_norm_([x for name, x in model.named_parameters() if 'dnet' in name.lower()], args.grad_clip)
+                nn.utils.clip_grad_norm_([x for name, x in model.named_parameters() if 'tnet' in name.lower()], args.grad_clip)
                 loss.backward()
 
                 optimizer.step()
@@ -103,7 +99,7 @@ def get_args():
     parser.add_argument('--epoch', type=int, default=80)
     parser.add_argument('--milestones', type=list, default=[10,20,30,45,60])
     parser.add_argument('--gamma', type=float, default=0.5)
-    parser.add_argument('--grad_clip', type=float, default=0.5)
+    parser.add_argument('--grad_clip', type=float, default=0.01)
     parser.add_argument('--log_dir', type=str, default='/home/eunu/nas/vhrn_log/dist/gg/1e-7')
     parser.add_argument('--patch_size', type=int, default=256)
     parser.add_argument('--augmentation', type=bool, default=True)
