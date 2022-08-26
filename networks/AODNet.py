@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class AODNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
+    def __init__(self, in_channels=3, out_channels=3, mode='dehazer'):
         super(AODNet, self).__init__()
         self.relu = nn.ReLU(inplace=True)
         self.e_conv1 = nn.Conv2d(in_channels,3,1,1,0,bias=True)
@@ -27,10 +27,11 @@ class AODNet(nn.Module):
         n4 = x4 * std2 + mean2
         concat3 = torch.cat((x1,x2,n3,n4),1)
         x5 = self.relu(self.e_conv5(concat3))
-
-        clean_image = (x5 * x) - x5 + 1
         
-        return clean_image
+        if mode == 'dehazer':
+            return (x5 * x) - x5 + 1
+        else:
+            return x5
 
 class PONO(nn.Module):
     def __init__(self, input_size=None, return_stats=False, affine=True, eps=1e-5):
