@@ -11,7 +11,7 @@ class AODNet(nn.Module):
         self.e_conv3 = nn.Conv2d(6,3,5,1,2,bias=True)
         self.e_conv4 = nn.Conv2d(6,3,7,1,3,bias=True)
         self.e_conv5 = nn.Conv2d(12,out_channels,3,1,1,bias=True)
-
+        self.mode = mode
         self.pono = PONO(affine=False)
         
     def forward(self, x):
@@ -28,7 +28,7 @@ class AODNet(nn.Module):
         concat3 = torch.cat((x1,x2,n3,n4),1)
         x5 = self.relu(self.e_conv5(concat3))
         
-        if mode == 'dehazer':
+        if self.mode == 'dehazer':
             return (x5 * x) - x5 + 1
         else:
             return x5
