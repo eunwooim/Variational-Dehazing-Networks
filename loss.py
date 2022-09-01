@@ -32,6 +32,6 @@ def loss_val(d_out, d_gt, eps1, kl_j):
     if kl_j == 'gaussian':
         kl_dehaze = torch.mean((d_out-d_gt)**2 / eps1)
     elif kl_j == 'laplace':
-        kl_dehaze = torch.mean(torch.exp(-torch.abs(d_out-d_gt)/eps1) + torch.abs(d_out-d_gt)/eps1)
+        kl_dehaze = torch.mean(torch.exp(-torch.abs(d_out-d_gt)/eps1) + torch.abs(d_out-d_gt)) / eps1
 
     return kl_dehaze
