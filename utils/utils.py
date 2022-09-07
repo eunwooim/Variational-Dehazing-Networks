@@ -26,7 +26,8 @@ def get_A(img, p=0.001):
     num_pixels = np.prod(dc.shape)
     flat_img, flat_dc = img.reshape(num_pixels,3), dc.ravel()
     idx = (-flat_dc).argsort()[:int(num_pixels * p)]
-    return np.max(flat_img.take(idx, axis=0), axis=0)
+    A = np.max(flat_img.take(idx, axis=0), axis=0)
+    return (0.2126 * A[0] + 0.7152 * A[1] + 0.0722 * A[2]) / 255
 
 def he_init(model):
     for m in model.modules():
