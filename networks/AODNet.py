@@ -1,6 +1,16 @@
 import torch
 import torch.nn as nn
 
+from networks.GCANet import GCANet
+
+
+'''
+Reference:
+Boyi Li, Xiulian Peng, Zhangyang Wang, Jizheng Xu, Dan Feng
+AOD-Net: All-in-one Dehazing Network
+ArXiv: https://arxiv.org/abs/2204.03883
+Github: https://github.com/Boyiliee/AOD-Net
+'''
 
 class AODNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, mode='dehazer'):
@@ -54,3 +64,21 @@ class PONO(nn.Module):
         if self.affine:
             x = x * self.gamma + self.beta
         return x, mean, std
+
+class VHRN(nn.Module): 
+    def __init__(self): 
+        super(VHRN, self).__init__()
+        self.DNet = AODNet()
+        self.TNet = GCANet(3,1,mode='t')
+
+    def forward(self, x, mode = 'train'): 
+        if mode.lower() == 'train':
+            phi_Z = self.DNet(x)    
+            phi_T = self.TNet(x)
+            return phi_Z, phi_T
+        if mode.lower() == 'test':
+            phi_Z = self.DNet(x)
+            return phi_Z
+        if mode.lower() == 'transmission':
+            phi_T= self.TNet(x)
+            return phi_T

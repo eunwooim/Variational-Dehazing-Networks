@@ -1,9 +1,9 @@
+from math import pi, log, sqrt
+
 import cv2
 import numpy as np
 import torch
 import torch.nn as nn
-
-from networks.VHRN import VHRN
 
 
 def postprocess(output):
@@ -29,13 +29,58 @@ def get_A(img, p=0.001):
     A = np.max(flat_img.take(idx, axis=0), axis=0)
     return (0.2126 * A[0] + 0.7152 * A[1] + 0.0722 * A[2]) / 255
 
-def he_init(model):
-    for m in model.modules():
-        if isinstance(m, nn.Conv2d):
-            nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-            if not m.bias is None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.BatchNorm2d):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
+def edge_compute(x):
+    x_diffx = torch.abs(x[:,:,1:] - x[:,:,:-1])
+    x_diffy = torch.abs(x[:,1:,:] - x[:,:-1,:])
+    y = x.new(x.size())
+    y.fill_(0)
+    y[:,:,1:] += x_diffx
+    y[:,:,:-1] += x_diffx
+    y[:,1:,:] += x_diffy
+    y[:,:-1,:] += x_diffy
+    y = torch.sum(y,0,keepdim=True)/3
+    y /= 4
+    return y
+
+def vlb_loss(inp, d_out, t_out, d_gt, t_gt, A, sigma, eps1, eps2, kl_j, kl_t):
+    # Likelihood
+    lh = 0.5 * torch.mean((inp - (d_out*t_out) - A*(1-t_out))**2)/sigma
+    
+    # KL divergence for dehazer
+    if kl_j == 'gaussian':
+        kl_dehaze = 0.5 * torch.mean((d_out-d_gt)**2)/eps1 + torch.log(2*pi*sigma)/2
+    if kl_j == 'laplace':
+        kl_dehaze = torch.mean(torch.exp(-torch.abs(d_out - d_gt)/eps1) + torch.abs(d_out - d_gt)/eps1) - 1
+    
+    # KL divergence for transmission
+    if kl_t == 'gaussian':
+        kl_transmission = 0.5 * torch.mean((t_out-t_gt)**2)/eps2
+    if kl_t == 'lognormal':
+        kl_transmission = torch.div(torch.mean((torch.log(t_out) - torch.log(t_gt))**2), 2*eps2)
+
+    total_loss = lh + kl_dehaze + kl_transmission
+    return total_loss, lh, kl_dehaze, kl_transmission
+
+def loss_val(d_out, d_gt, eps1, kl_j):
+    # KL divergence for dehazer
+    if kl_j == 'gaussian':
+        kl_dehaze = torch.mean((d_out-d_gt)**2 / eps1)
+    elif kl_j == 'laplace':
+        kl_dehaze = torch.mean(torch.exp(-torch.abs(d_out - d_gt)/eps1) + torch.abs(d_out - d_gt)/eps1) - 1
+
+    return kl_dehaze
+
+def get_model(args):
+    if args.model.lower() == 'aod': 
+        from networks.AODNet import VHRN
+        model = VHRN()
+    elif args.model.lower() == 'gca':
+        from networks.GCANet import VHRN
+        model = VHRN()
+    elif args.model.lower() == 'ffa':
+        from networks.FFANet import VHRN
+        model = VHRN()
+    elif args.model.lower() == 'dehazeformer':
+        from networks.DehazeFormer import VHRN
+        model = VHRN()
     return model

@@ -3,6 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+'''
+Reference:
+Dongdong Chen, Mingming He, Qingnan Fan, Jing Liao, Liheng Zhang, Dongdong Hou, Lu Yuan, Gnag Hua
+Gated Context Aggregation Network for Image Dehazing and Deraining
+ArXiv: https://arxiv.org/pdf/1811.08747.pdf
+Github: https://github.com/cddlyf/GCANet
+'''
+
 class ShareSepConv(nn.Module):
     def __init__(self, kernel_size):
         super(ShareSepConv, self).__init__()
@@ -99,3 +107,21 @@ class GCANet(nn.Module):
             return y
         else:
             return torch.sigmoid(y)
+
+class VHRN(nn.Module): 
+    def __init__(self): 
+        super(VHRN, self).__init__()
+        self.DNet = GCANet(4,1)
+        self.TNet = GCANet(4,1,mode='t')
+
+    def forward(self, x, mode = 'train'): 
+        if mode.lower() == 'train':
+            phi_Z = self.DNet(x)    
+            phi_T = self.TNet(x)
+            return phi_Z, phi_T
+        if mode.lower() == 'test':
+            phi_Z = self.DNet(x)
+            return phi_Z
+        if mode.lower() == 'transmission':
+            phi_T= self.TNet(x)
+            return phi_T

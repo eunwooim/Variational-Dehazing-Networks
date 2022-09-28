@@ -1,0 +1,10 @@
+{
+    "dehazer": "ffa",
+    "batch_size": 4,
+    "epoch": 150,
+    "patch_size": 240,
+    "lr": 1e-4,
+    "optimizer": "adam",
+    "scheduler": "CA",
+    "eta_min": 0
+}

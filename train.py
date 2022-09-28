@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 
 from skimage.metrics import peak_signal_noise_ratio as psnr
@@ -9,24 +10,31 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from data.dataloader import TrainSet, TestSet
-from loss import *
-from networks.VHRN import *
+from data import dataloader
 from utils import utils
 
 
-def train(args):
+def train(args, opts):
     torch.cuda.empty_cache()
     os.makedirs(args.ckpt, exist_ok=True)
-    os.makedirs(args.log_dir, exist_ok=True)
-    writer = SummaryWriter(args.log_dir)
-    model = VHRN()
+    os.makedirs(args.logdir, exist_ok=True)
+    writer = SummaryWriter(args.logdir)
+    model = utils.get_model(args)
     model = nn.DataParallel(model).cuda()
     print('Loaded Model')
-    criterion = vlb_loss
-    optimizer = optim.AdamW(model.parameters(), lr = args.lr)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer,
-                                milestones=args.milestones, gamma=args.gamma)
+    criterion = utils.vlb_loss
+    if opts['optimizer'] == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr=opts['lr'])
+    elif opts['optimizer'] == 'adamw':
+        optimizer = optim.AdamW(model.parameters(), lr=opts['lr'])
+    
+    if opts['scheduler'] == 'StepLR':
+        scheduler = optim.lr_scheduler.StepLR(optimizer,
+                            step_size=opts['step_size'], gamma=opts['gamma'])
+    elif opts['scheduler'] == 'CA':
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer,
+                                T_max=opts['epoch'], eta_min=opts['eta_min'])
+    
     if args.resume:
         ckpt = f'{args.ckpt}/{str(args.resume).zfill(3)}.pth'
         ckpt = torch.load(ckpt)
@@ -36,31 +44,40 @@ def train(args):
         start_epoch = args.resume
     else:
         start_epoch = 0
-    trainset = TrainSet(args)
-    trainset = DataLoader(trainset, shuffle=True, batch_size=args.batch_size,
-                            num_workers=8, pin_memory=True)
-    validation = TestSet(args)
+    
+    if args.dataset == 'indoor':
+        trainset = dataloader.IndoorTrain(args)
+        validation = dataloader.IndoorTest(args)
+    elif args.dataset == 'outdoor':
+        trainset = dataloader.OutdoorTrain(args)
+        validation = dataloader.OutdoorTest(args)
+    
+    trainset = DataLoader(trainset, shuffle=True,
+                batch_size=opts['batch_size'], num_workers=8, pin_memory=True)
     validation = DataLoader(validation, shuffle=False, batch_size=1,
-                            num_workers=1, pin_memory=True)
+                                            num_workers=1, pin_memory=True)
+
     print('Loaded Data')
 
     train_len, val_len = len(trainset), len(validation)
-    for epoch in range(start_epoch, args.epoch):
+    train_len = len(trainset)
+    print(f'Train length: {train_len}, Validation length: {val_len}')
+    for epoch in range(start_epoch, opts['epoch']):
         model.train()
-        running_loss = lh_loss = trans_loss = dehaze_loss = val_loss = PSNR = 0
-        with tqdm(total=len(trainset), desc=f'Epoch {epoch+1}', ncols=60) as pbar:
-            for i, batch in enumerate(trainset):
-                clear, hazy, trans, A = [x.cuda().float() for x in batch]
+        tot_loss = lh_loss = trans_loss = dehaze_loss = val_loss = PSNR = 0
+        with tqdm(total=train_len, desc=f'Epoch {epoch+1}', ncols=60) as pbar:
+            for batch in trainset:
+                clear, hazy, trans, A, edge = [x.cuda().float() for x in batch]
                 optimizer.zero_grad()
-                dehaze_est, trans_est = model(hazy, 'train')
-                loss, lh, kl_dehaze, kl_trans = criterion(hazy, dehaze_est, trans_est, clear, trans, A, sigma=args.sigma, eps1=args.eps1, eps2=args.eps2, kl_j=args.kl_j, kl_t=args.kl_t)
-
-                nn.utils.clip_grad_norm_([x for name, x in model.named_parameters() if 'dnet' in name.lower()], args.grad_clip)
-                nn.utils.clip_grad_norm_([x for name, x in model.named_parameters() if 'tnet' in name.lower()], args.grad_clip)
+                dehaze_est, trans_est = model(edge)
+                loss, lh, kl_dehaze, kl_trans = criterion(
+                    hazy, dehaze_est, trans_est, clear, trans, A,
+                    args.sigma, args.eps1, args.eps2, args.kl_j, args.kl_t)
                 loss.backward()
+                nn.utils.clip_grad_norm_([p for p in model.parameters()], 1e3)
 
                 optimizer.step()
-                running_loss += loss.item() / train_len
+                tot_loss += loss.item() / train_len
                 lh_loss += lh.item() / train_len
                 trans_loss += kl_trans.item() / train_len
                 dehaze_loss += kl_dehaze.item() / train_len
@@ -69,20 +86,22 @@ def train(args):
         for batch in validation:
             clear, hazy = [x.cuda().float() for x in batch]
             with torch.no_grad():
-                dehaze_est, _ = model(hazy, 'train')
-                val_dehaze = loss_val(dehaze_est, clear, eps1=args.eps1, kl_j=args.kl_j)
+                dehaze_est, _ = model(hazy)
+                val_dehaze = utils.loss_val(dehaze_est, clear,
+                                            args.eps1, args.kl_j)
                 val_loss += val_dehaze / train_len
             dehaze_est = utils.postprocess(dehaze_est[:,:3])
             clear = utils.postprocess(clear)
             PSNR += psnr(dehaze_est, clear)
+        print(PSNR/val_len)
         scheduler.step()
 
-        writer.add_scalar('Train Loss', running_loss, epoch+1)
-        writer.add_scalar('Train Likelihood', lh, epoch+1)
+        writer.add_scalar('Train Loss', tot_loss, epoch+1)
+        writer.add_scalar('Train Likelihood', lh_loss, epoch+1)
         writer.add_scalar('Train Transmission', trans_loss, epoch+1)
         writer.add_scalar('Train Dehazer', dehaze_loss, epoch+1)
-        writer.add_scalar('Validation Loss', dehaze_val, epoch+1)
-        writer.add_scalar('PSNR', PSNR/val_len, epoch+1)
+        writer.add_scalar('Validation Loss', val_loss, epoch+1)
+        writer.add_scalar('PSNR', PSNR / val_len, epoch+1)
 
         torch.save({'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
@@ -91,32 +110,30 @@ def train(args):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=8)
-    parser.add_argument('--lr', type=float, default=2e-4)
-    parser.add_argument('--train_path', type=str, default='/home/eunu/nas/reside/in_train_with_A.h5')
-    parser.add_argument('--test_path', type=str, default='/home/eunu/nas/reside/in_val.h5')
-    parser.add_argument('--ckpt', type=str, default='/home/eunu/nas/vhrn_ckpt/dist/gg/1e-7')
-    parser.add_argument('--epoch', type=int, default=80)
-    parser.add_argument('--milestones', type=list, default=[10,20,30,45,60])
-    parser.add_argument('--gamma', type=float, default=0.5)
-    parser.add_argument('--grad_clip', type=float, default=0.01)
-    parser.add_argument('--log_dir', type=str, default='/home/eunu/nas/vhrn_log/dist/gg/1e-7')
-    parser.add_argument('--patch_size', type=int, default=256)
+    parser.add_argument('--model', type=str, default='gca')
+    parser.add_argument('--dataset', type=str, default='indoor')
+    parser.add_argument('--ckpt', type=str)
+    parser.add_argument('--logdir', type=str)
     parser.add_argument('--augmentation', type=bool, default=True)
-    parser.add_argument('--eps', type=float, default=1e-7)
-    parser.add_argument('--sigma', type=float, default=1e-6)
-    parser.add_argument('--kl_j', type=str, default='gaussian')
-    parser.add_argument('--kl_t', type=str, default='gaussian')
+    parser.add_argument('--sigma', type=float, default=1e-5)
+    parser.add_argument('--eps1', type=float, default=1e-5)
+    parser.add_argument('--eps2', type=float, default=1e-5)
+    parser.add_argument('--kl_j', type=str, default='laplace')
+    parser.add_argument('--kl_t', type=str, default='lognormal')
 
-    parser.add_argument('--cuda', type=int, default=2)
+    parser.add_argument('--cuda', type=str, default='7')
     parser.add_argument('--resume', type=int, default=0)
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    if isinstance(args.cuda, int):
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
-    else:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ','.join(str(x) for x in list(args.cuda))
-    train(args)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.cuda)
+    print(args)
+    opt = os.path.join('./config', args.dataset, args.model + '.json')
+    with open(opt, 'r') as f:
+        opts = json.load(f)
+        args.patch_size = opts['patch_size']
+    
+    print(opts)
+    train(args, opts)

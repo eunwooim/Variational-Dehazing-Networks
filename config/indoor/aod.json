@@ -1,0 +1,11 @@
+{
+    "dehazer": "aod",
+    "batch_size": 4,
+    "epoch": 10,
+    "patch_size": 0,
+    "lr": 1e-2,
+    "optimizer": "adam",
+    "scheduler": "StepLR",
+    "gamma": 1,
+    "step_size": 10
+}
