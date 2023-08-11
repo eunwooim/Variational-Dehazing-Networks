@@ -1,1 +1,1 @@
-# VHRN
+# Deep Variational Bayesian Modeling of Haze Degradation Process
