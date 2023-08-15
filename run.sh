@@ -1,2 +1,0 @@
-# Example
-# python train.py --model gca --dataset indoor --ckpt /home/eunu/nas/vhrn_ckpt/ --logdir /home/eunu/nas/vhrn_log/ --sigma 1e-5 --eps1 1e-5 --eps2 1e-5 --kl_j laplace --kl_t lognormal --cuda 0
