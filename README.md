@@ -3,7 +3,7 @@
 # Deep Variational Bayesian Modeling of Haze Degradation Process
 
 This is official PyTorch implementation for the paper "Deep Variational Bayesian Modeling of Haze Degradation".
-This repository contains the official implementation for SANFlow introduced in the following paper:
+This repository contains the official implementation for Variational Dehazing Networks introduced in the following paper:
 
 [[Paper](https://dl.acm.org/doi/10.1145/3583780.3614838)] [[Checkpoints](https://hanyangackr0-my.sharepoint.com/:u:/g/personal/junsung6140_m365_hanyang_ac_kr/EYI6hz3mDOJLkgwl-TAEMxABYpG8FE-5-Q0fSlgUK58mng)]
 
